@@ -14,7 +14,7 @@ Options:
   -o, --output-dir DIR              Write reports and outputs to DIR.
                                     Default: input file directory.
       --mkv-tracks TRACKS           Comma-separated MKV track IDs from mkvmerge -J.
-                                    Default: all mono or stereo audio tracks.
+                                    Default: all lossless mono or stereo audio tracks.
       --mkv-output FILE             Write the remuxed MKV to FILE instead of
                                     overwriting the input MKV.
       --spectrogram-trim SEC        Generate spectrograms for SEC seconds.
@@ -38,9 +38,9 @@ Options:
                               			Use auto, 8, 16, or 24. Default: auto.
   -h, --help                  			Show this help.
 
-Direct audio inputs run SoX analysis. MKV inputs decode selected mono or stereo
-audio tracks, analyze them, remux replacement FLAC tracks, and overwrite the
-input MKV after a successful remux unless --mkv-output is used.
+Direct audio inputs run SoX analysis. MKV inputs decode selected lossless mono
+or stereo audio tracks, analyze them, remux replacement FLAC tracks, and
+overwrite the input MKV after a successful remux unless --mkv-output is used.
 "
 
 die() {
@@ -192,7 +192,7 @@ write_mkv_summary() {
 		printf 'Input: %s\n' "$input_path"
 		printf 'Output: %s\n' "$target_path"
 		printf 'Output mode: %s\n' "$output_mode"
-		printf 'Track selection: %s\n' "${MKV_TRACKS:-all mono or stereo audio tracks}"
+		printf 'Track selection: %s\n' "${MKV_TRACKS:-all lossless mono or stereo audio tracks}"
 		printf '\n'
 		printf 'Replaced tracks:\n'
 		if [ ! -s "$replacement_track_ids_file" ]; then
@@ -218,6 +218,7 @@ process_mkv() {
 	local input_base="$2"
 	local output_dir="$3"
 	local metadata_file
+	local mediainfo_file
 	local track_json_file
 	local requested_track_ids_file
 	local replacement_track_ids_file
@@ -227,6 +228,7 @@ process_mkv() {
 	local track_type
 	local track_channels
 	local track_codec
+	local track_compression_mode
 	local requested_id
 	local requested_track_type
 	local audio_index=0
@@ -271,6 +273,7 @@ process_mkv() {
 	trap cleanup_mkv 0 HUP INT TERM
 
 	metadata_file="$tmp_dir/$input_base.mkvmerge.json"
+	mediainfo_file="$tmp_dir/$input_base.mediainfo.json"
 	track_json_file="$tmp_dir/tracks.jsonl"
 	requested_track_ids_file="$tmp_dir/requested-track-ids.txt"
 	replacement_track_ids_file="$tmp_dir/replacement-track-ids.txt"
@@ -278,6 +281,7 @@ process_mkv() {
 	: >"$replacement_track_ids_file"
 	: >"$preserved_track_summaries_file"
 	print_and_run mkvmerge -J "$input_path" >"$metadata_file"
+	print_and_run mediainfo --Output=JSON "$input_path" >"$mediainfo_file"
 	jq -c '.tracks[]' "$metadata_file" >"$track_json_file"
 
 	if [ -n "$MKV_TRACKS" ]; then
@@ -305,18 +309,27 @@ process_mkv() {
 		fi
 
 		ffmpeg_map="0:a:$audio_index"
+		track_compression_mode="$(
+			jq -r --argjson index "$audio_index" \
+				'[.media.track[] | select(."@type" == "Audio")][$index].Compression_Mode // empty' \
+				"$mediainfo_file"
+		)"
 		audio_index=$((audio_index + 1))
 
 		if [ -n "$MKV_TRACKS" ]; then
 			if csv_contains "$MKV_TRACKS" "$track_id"; then
 				selected_for_analysis=1
 			fi
-		elif [ "$track_channels" = "1" ] || [ "$track_channels" = "2" ]; then
+		elif { [ "$track_channels" = "1" ] || [ "$track_channels" = "2" ]; } && [ "$track_compression_mode" = "Lossless" ]; then
 			selected_for_analysis=1
 		fi
 
 		if [ "$selected_for_analysis" = "0" ]; then
-			printf '%s\n' "- Track $track_id preserved: not selected" >>"$preserved_track_summaries_file"
+			if [ -z "$MKV_TRACKS" ] && { [ "$track_channels" = "1" ] || [ "$track_channels" = "2" ]; }; then
+				printf '%s\n' "- Track $track_id preserved: ${track_compression_mode:-unknown} compression mode is not lossless" >>"$preserved_track_summaries_file"
+			else
+				printf '%s\n' "- Track $track_id preserved: not selected" >>"$preserved_track_summaries_file"
+			fi
 			continue
 		fi
 

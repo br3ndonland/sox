@@ -4,7 +4,7 @@
 
 This repo builds a Docker container image that can be used to run [SoX](https://sourceforge.net/projects/sox/) (Sound eXchange). Other tools include [FFmpeg](https://ffmpeg.org/), [MKVToolNix](https://mkvtoolnix.download/), [MediaInfo](https://mediaarea.net/en/MediaInfo), [jq](https://jqlang.org/manual/), and [uv](https://docs.astral.sh/uv/). The waveform annotation script also uses [Pillow](https://pillow.readthedocs.io/en/stable/index.html).
 
-The entrypoint can analyze individual audio files or Matroska video files (`.mkv`). MKVs are analyzed by decoding mono and stereo audio tracks in the file, analyzing them, remuxing replacement FLAC tracks, and optionally overwriting the original MKV after a successful remux.
+The entrypoint can analyze individual audio files or Matroska video files (`.mkv`). By default, MKVs are analyzed by decoding lossless mono and stereo audio tracks in the file, analyzing them, remuxing replacement FLAC tracks, and optionally overwriting the original MKV after a successful remux.
 
 ## Usage
 
@@ -22,7 +22,7 @@ Audio files are analyzed with [`analyze_audio.sh`](./sox/analyze_audio.sh), whic
 
 ### MKV files
 
-For `.mkv` inputs, the entrypoint uses `mkvmerge -J` to discover audio tracks. By default, every mono or stereo audio track is decoded to FLAC, analyzed, and replaced in a remuxed MKV.
+For `.mkv` inputs, the entrypoint uses `mkvmerge -J` to discover audio tracks and MediaInfo to determine their compression modes. By default, every lossless mono or stereo audio track is decoded to FLAC, analyzed, and replaced in a remuxed MKV. Lossy tracks are preserved.
 
 ```sh
 docker run --rm -it -u "$(id -u):$(id -g)" -v /path/to/media:/opt/media ghcr.io/br3ndonland/sox file.mkv
@@ -41,6 +41,8 @@ Analyze and replace only selected MKV track IDs:
 ```sh
 docker run --rm -it -u "$(id -u):$(id -g)" -v /path/to/media:/opt/media ghcr.io/br3ndonland/sox --mkv-tracks 1,2 file.mkv
 ```
+
+Explicit `--mkv-tracks` selections can include lossy tracks, but selected tracks must still be mono or stereo.
 
 `--mkv-tracks` uses MKV track IDs from `mkvmerge -J`, not FFmpeg stream indexes. List track IDs with:
 
