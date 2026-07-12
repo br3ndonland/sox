@@ -371,69 +371,44 @@ make_spectrogram() {
 	start="${SPECTROGRAM_START:-0}"
 
 	if [ -n "${SPECTROGRAM_TRIM:-}" ]; then
-		case "$mode" in
-		stereo)
-			sox "$work_input" -n trim "$start" "$SPECTROGRAM_TRIM" spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		left)
-			sox "$work_input" -n trim "$start" "$SPECTROGRAM_TRIM" remix 1 spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		right)
-			sox "$work_input" -n trim "$start" "$SPECTROGRAM_TRIM" remix 2 spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		diff)
-			sox "$work_input" -n trim "$start" "$SPECTROGRAM_TRIM" remix 1,2i spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		mid)
-			sox "$work_input" -n trim "$start" "$SPECTROGRAM_TRIM" remix 1v0.5,2v0.5 spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		side)
-			sox "$work_input" -n trim "$start" "$SPECTROGRAM_TRIM" remix 1v0.5,2v-0.5 spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		esac
+		set -- trim "$start" "$SPECTROGRAM_TRIM"
 	elif [ "$start" != "0" ]; then
-		case "$mode" in
-		stereo)
-			sox "$work_input" -n trim "$start" spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		left)
-			sox "$work_input" -n trim "$start" remix 1 spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		right)
-			sox "$work_input" -n trim "$start" remix 2 spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		diff)
-			sox "$work_input" -n trim "$start" remix 1,2i spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		mid)
-			sox "$work_input" -n trim "$start" remix 1v0.5,2v0.5 spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		side)
-			sox "$work_input" -n trim "$start" remix 1v0.5,2v-0.5 spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		esac
+		set -- trim "$start"
 	else
-		case "$mode" in
-		stereo)
-			sox "$work_input" -n spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		left)
-			sox "$work_input" -n remix 1 spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		right)
-			sox "$work_input" -n remix 2 spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		diff)
-			sox "$work_input" -n remix 1,2i spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		mid)
-			sox "$work_input" -n remix 1v0.5,2v0.5 spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		side)
-			sox "$work_input" -n remix 1v0.5,2v-0.5 spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-			;;
-		esac
+		set --
 	fi
+
+	case "$mode" in
+	stereo)
+		printf 'Generating spectrogram: stereo channels (no remix)\n' >&2
+		sox "$work_input" -n "$@" spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
+		;;
+	left)
+		remix_spec="1"
+		printf 'Generating spectrogram: left channel (SoX remix %s)\n' "$remix_spec" >&2
+		sox "$work_input" -n "$@" remix "$remix_spec" spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
+		;;
+	right)
+		remix_spec="2"
+		printf 'Generating spectrogram: right channel (SoX remix %s)\n' "$remix_spec" >&2
+		sox "$work_input" -n "$@" remix "$remix_spec" spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
+		;;
+	diff)
+		remix_spec="1,2i"
+		printf 'Generating spectrogram: L-R difference (SoX remix %s: left plus inverted right)\n' "$remix_spec" >&2
+		sox "$work_input" -n "$@" remix "$remix_spec" spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
+		;;
+	mid)
+		remix_spec="1v0.5,2v0.5"
+		printf 'Generating spectrogram: Mid (L+R)/2 (SoX remix %s)\n' "$remix_spec" >&2
+		sox "$work_input" -n "$@" remix "$remix_spec" spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
+		;;
+	side)
+		remix_spec="1v0.5,2v-0.5"
+		printf 'Generating spectrogram: Side (L-R)/2 (SoX remix %s)\n' "$remix_spec" >&2
+		sox "$work_input" -n "$@" remix "$remix_spec" spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
+		;;
+	esac
 }
 
 make_waveform() {
