@@ -25,11 +25,11 @@ Options:
       --no-waveforms                Skip waveform PNG generation.
       --no-spectrograms             Skip PNG spectrogram generation.
       --no-mono                     Do not write a mono FLAC even if dual mono.
-      --strict-dual-mono            Require exact L-R digital silence for dual mono.
-      --dual-mono-peak-threshold DB Effective dual mono L-R peak threshold.
-                              			Default: -80.
-      --dual-mono-rms-threshold DB  Effective dual mono L-R RMS threshold.
-                                    Default: -120.
+      --strict-dual-mono            Require exact side digital silence for dual mono.
+      --dual-mono-peak-threshold DB Effective dual mono side peak threshold.
+																		Default: -86.02.
+      --dual-mono-rms-threshold DB  Effective dual mono side RMS threshold.
+                                    Default: -126.02.
       --write-flac            			Write INPUT_BASENAME.audio.flac. Default: enabled.
       --no-write-flac         			Do not write INPUT_BASENAME.audio.flac.
       --strip-padding         			Strip FLAC padding when safe. Default: enabled.
@@ -441,8 +441,8 @@ NO_SPECTROGRAMS=0
 NO_WAVEFORMS=0
 NO_MONO=0
 STRICT_DUAL_MONO=0
-DUAL_MONO_PEAK_THRESHOLD="-80"
-DUAL_MONO_RMS_THRESHOLD="-120"
+DUAL_MONO_PEAK_THRESHOLD="-86.02"
+DUAL_MONO_RMS_THRESHOLD="-126.02"
 WRITE_FLAC=1
 STRIP_PADDING=1
 PADDING_TARGET_BITS=auto

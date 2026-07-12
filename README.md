@@ -66,14 +66,16 @@ The entrypoint accepts the same analysis options for direct audio and MKV track 
 - `--no-waveforms`: skip waveform PNG generation.
 - `--no-spectrograms`: skip PNG spectrogram generation.
 - `--no-mono`: do not write mono FLAC output for dual mono stereo tracks.
-- `--strict-dual-mono`: require exact L-R digital silence for dual mono.
-- `--dual-mono-peak-threshold DB`: effective dual mono L-R peak threshold; default `-80`.
-- `--dual-mono-rms-threshold DB`: effective dual mono L-R RMS threshold; default `-120`.
+- `--strict-dual-mono`: require exact side digital silence for dual mono.
+- `--dual-mono-peak-threshold DB`: effective dual mono side peak threshold; default `-86.02`.
+- `--dual-mono-rms-threshold DB`: effective dual mono side RMS threshold; default `-126.02`.
 - `--write-flac`: write normalized FLAC output; default enabled.
 - `--no-write-flac`: skip normalized FLAC output. This cannot be used in MKV mode.
 - `--strip-padding`: strip FLAC padding when safe; default enabled.
 - `--no-strip-padding`: preserve decoded source precision.
 - `--padding-target-bits N`: target bit depth for padding stripping. Use `auto`, `8`, `16`, or `24`; default `auto`.
+
+The side signal uses `(L-R)/2`, so its amplitude is 6.02 dB below the unscaled `L-R` signal: `20 log10(0.5) = -6.0206 dB`. The default side thresholds of `-86.02` dB peak and `-126.02` dB RMS therefore preserve the same dual-mono decision boundaries as `-80` dB and `-120` dB applied to unscaled `L-R`.
 
 ### Interactive usage
 
@@ -95,26 +97,25 @@ docker run --rm -it -u apps -v /path/to/media:/opt/media --entrypoint sh ghcr.io
 
 ## Outputs
 
-By default, analysis outputs are written to the input file's directory. For
-example, an input at `/opt/media/subdir/file.flac` writes its outputs to
-`/opt/media/subdir/`. Override this location with `--output-dir`.
+By default, analysis outputs are written to the input file's directory. For example, an input at `/opt/media/subdir/file.flac` writes its outputs to `/opt/media/subdir/`. Override this location with `--output-dir`.
 
 Each analyzed audio file or MKV track writes:
 
 - `INPUT_BASENAME.audio.report.txt`
 - `INPUT_BASENAME.audio.source.txt`
 - `INPUT_BASENAME.audio.stats.source.txt`
-- `INPUT_BASENAME.audio.stats.diff-l-minus-r.txt`
-- `INPUT_BASENAME.audio.stats.sum-l-plus-r.txt`
+- `INPUT_BASENAME.audio.stats.side-l-minus-r.txt`
+- `INPUT_BASENAME.audio.stats.mid-l-plus-r.txt`
 - `INPUT_BASENAME.audio.flac`
 - `INPUT_BASENAME.audio.spectrograms.png`
 - `INPUT_BASENAME.audio.waveforms.png`
 
-Stereo inputs also write channel and Mid/Side visualizations:
+Stereo inputs also write channel and mid/side visualizations:
+
+The mid and side signals use `(L+R)/2` and `(L-R)/2`, respectively, so they remain within full scale before statistics and spectrogram generation.
 
 - `INPUT_BASENAME.audio.left.png`
 - `INPUT_BASENAME.audio.right.png`
-- `INPUT_BASENAME.audio.diff-l-minus-r.png`
 - `INPUT_BASENAME.audio.mid-l-plus-r.png`
 - `INPUT_BASENAME.audio.side-l-minus-r.png`
 - `INPUT_BASENAME.audio.mid-side-waveforms.png`
@@ -131,9 +132,7 @@ MKV mode also writes:
 INPUT_BASENAME.audio.mkv.report.txt
 ```
 
-That report lists replaced tracks and preserved or skipped audio tracks.
-MKV track outputs include the track ID after `.audio`, for example
-`INPUT_BASENAME.audio.track-1.report.txt`.
+That report lists replaced tracks and preserved or skipped audio tracks. MKV track outputs include the track ID after `.audio`, for example `INPUT_BASENAME.audio.track-1.report.txt`.
 
 ## Development
 

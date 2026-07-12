@@ -41,8 +41,8 @@ fi
 
 source_info="$output_dir/$base.source.txt"
 source_stats="$output_dir/$base.stats.source.txt"
-diff_stats="$output_dir/$base.stats.diff-l-minus-r.txt"
-sum_stats="$output_dir/$base.stats.sum-l-plus-r.txt"
+side_stats="$output_dir/$base.stats.side-l-minus-r.txt"
+mid_stats="$output_dir/$base.stats.mid-l-plus-r.txt"
 report="$output_dir/$base.report.txt"
 mono_output="$output_dir/$base.mono.flac"
 flac_output="$output_dir/$base.flac"
@@ -51,6 +51,8 @@ waveform_output="$output_dir/$base.waveforms.png"
 matrix_mid_spectrogram="$output_dir/$base.mid-l-plus-r.png"
 matrix_side_spectrogram="$output_dir/$base.side-l-minus-r.png"
 matrix_mid_side_waveform="$output_dir/$base.mid-side-waveforms.png"
+mid_remix_spec="1v0.5,2v0.5"
+side_remix_spec="1v0.5,2v-0.5"
 
 soxi "$work_input" >"$source_info" 2>&1
 sox "$work_input" -n stats >"$source_stats" 2>&1
@@ -65,13 +67,13 @@ effective_dual_mono="no"
 dual_mono="no"
 dual_mono_reason="not evaluated"
 dual_mono_mode="effective"
-dual_mono_peak_threshold="${DUAL_MONO_PEAK_THRESHOLD:--80}"
-dual_mono_rms_threshold="${DUAL_MONO_RMS_THRESHOLD:--120}"
+dual_mono_peak_threshold="${DUAL_MONO_PEAK_THRESHOLD:--86.02}"
+dual_mono_rms_threshold="${DUAL_MONO_RMS_THRESHOLD:--126.02}"
 opposite_phase_duplicate="no"
-diff_pk="skipped"
-diff_rms="skipped"
-sum_pk="skipped"
-sum_rms="skipped"
+side_pk="skipped"
+side_rms="skipped"
+mid_pk="skipped"
+mid_rms="skipped"
 mono_status="skipped"
 mono_output_bits="unknown"
 flac_output_status="skipped"
@@ -393,19 +395,14 @@ make_spectrogram() {
 		printf 'Generating spectrogram: right channel (SoX remix %s)\n' "$remix_spec" >&2
 		sox "$work_input" -n "$@" remix "$remix_spec" spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
 		;;
-	diff)
-		remix_spec="1,2i"
-		printf 'Generating spectrogram: L-R difference (SoX remix %s: left plus inverted right)\n' "$remix_spec" >&2
-		sox "$work_input" -n "$@" remix "$remix_spec" spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
-		;;
 	mid)
-		remix_spec="1v0.5,2v0.5"
-		printf 'Generating spectrogram: Mid (L+R)/2 (SoX remix %s)\n' "$remix_spec" >&2
+		remix_spec="$mid_remix_spec"
+		printf 'Generating spectrogram: mid (L+R)/2 (SoX remix %s)\n' "$remix_spec" >&2
 		sox "$work_input" -n "$@" remix "$remix_spec" spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
 		;;
 	side)
-		remix_spec="1v0.5,2v-0.5"
-		printf 'Generating spectrogram: Side (L-R)/2 (SoX remix %s)\n' "$remix_spec" >&2
+		remix_spec="$side_remix_spec"
+		printf 'Generating spectrogram: side (L-R)/2 (SoX remix %s)\n' "$remix_spec" >&2
 		sox "$work_input" -n "$@" remix "$remix_spec" spectrogram -x "$SPECTROGRAM_WIDTH" -y "$SPECTROGRAM_CHANNEL_HEIGHT" -o "$out_file"
 		;;
 	esac
@@ -430,7 +427,7 @@ make_waveform() {
 make_mid_side_audio() {
 	mid_side_file="$1"
 
-	sox "$work_input" --comment "" -b "$precision_bits" "$mid_side_file" remix 1v0.5,2v0.5 1v0.5,2v-0.5
+	sox "$work_input" --comment "" -b "$precision_bits" "$mid_side_file" remix "$mid_remix_spec" "$side_remix_spec"
 }
 
 if [ "${NO_SPECTROGRAMS:-0}" = "0" ]; then
@@ -448,44 +445,44 @@ else
 fi
 
 if [ "$channels" = "2" ]; then
-	sox "$work_input" -n remix 1,2i stats >"$diff_stats" 2>&1
-	sox "$work_input" -n remix 1,2 stats >"$sum_stats" 2>&1
+	sox "$work_input" -n remix "$side_remix_spec" stats >"$side_stats" 2>&1
+	sox "$work_input" -n remix "$mid_remix_spec" stats >"$mid_stats" 2>&1
 
-	diff_pk="$(get_pk_db "$diff_stats")"
-	diff_rms="$(get_rms_db "$diff_stats")"
-	sum_pk="$(get_pk_db "$sum_stats")"
-	sum_rms="$(get_rms_db "$sum_stats")"
-	matrix_side_mid_delta_db="$(calc_db_delta "$diff_rms" "$sum_rms")"
+	side_pk="$(get_pk_db "$side_stats")"
+	side_rms="$(get_rms_db "$side_stats")"
+	mid_pk="$(get_pk_db "$mid_stats")"
+	mid_rms="$(get_rms_db "$mid_stats")"
+	matrix_side_mid_delta_db="$(calc_db_delta "$side_rms" "$mid_rms")"
 	matrix_correlation="$(calc_correlation_from_delta "$matrix_side_mid_delta_db")"
 	matrix_status="reported"
 
-	if [ "$diff_pk" = "-inf" ] && [ "$diff_rms" = "-inf" ]; then
+	if [ "$side_pk" = "-inf" ] && [ "$side_rms" = "-inf" ]; then
 		strict_dual_mono="yes"
 	fi
 
-	if db_at_or_below "$diff_pk" "$dual_mono_peak_threshold" && db_at_or_below "$diff_rms" "$dual_mono_rms_threshold"; then
+	if db_at_or_below "$side_pk" "$dual_mono_peak_threshold" && db_at_or_below "$side_rms" "$dual_mono_rms_threshold"; then
 		effective_dual_mono="yes"
 	fi
 
 	if [ "$dual_mono_mode" = "strict" ]; then
 		dual_mono="$strict_dual_mono"
 		if [ "$dual_mono" = "yes" ]; then
-			dual_mono_reason="strict L-R digital silence"
+			dual_mono_reason="strict side digital silence"
 		else
-			dual_mono_reason="strict mode requires L-R Pk lev dB and RMS lev dB to be -inf"
+			dual_mono_reason="strict mode requires side Pk lev dB and RMS lev dB to be -inf"
 		fi
 	else
 		dual_mono="$effective_dual_mono"
 		if [ "$strict_dual_mono" = "yes" ]; then
-			dual_mono_reason="strict L-R digital silence"
+			dual_mono_reason="strict side digital silence"
 		elif [ "$dual_mono" = "yes" ]; then
-			dual_mono_reason="L-R residual is below effective dual mono thresholds"
+			dual_mono_reason="side residual is below effective dual mono thresholds"
 		else
-			dual_mono_reason="L-R residual exceeds effective dual mono thresholds"
+			dual_mono_reason="side residual exceeds effective dual mono thresholds"
 		fi
 	fi
 
-	if [ "$sum_pk" = "-inf" ] && [ "$sum_rms" = "-inf" ]; then
+	if [ "$mid_pk" = "-inf" ] && [ "$mid_rms" = "-inf" ]; then
 		opposite_phase_duplicate="yes"
 	fi
 
@@ -500,9 +497,8 @@ if [ "$channels" = "2" ]; then
 	if [ "$spectrogram_status" = "written" ]; then
 		make_spectrogram left "$output_dir/$base.left.png" "$base left"
 		make_spectrogram right "$output_dir/$base.right.png" "$base right"
-		make_spectrogram diff "$output_dir/$base.diff-l-minus-r.png" "$base L-R"
-		make_spectrogram mid "$matrix_mid_spectrogram" "$base mid L+R"
-		make_spectrogram side "$matrix_side_spectrogram" "$base side L-R"
+		make_spectrogram mid "$matrix_mid_spectrogram" "$base mid"
+		make_spectrogram side "$matrix_side_spectrogram" "$base side"
 	fi
 
 	if [ "$waveform_status" = "written" ]; then
@@ -524,8 +520,8 @@ if [ "$channels" = "2" ]; then
 		mono_status="skipped because dual mono is no"
 	fi
 else
-	printf 'Skipped: input has %s channels, not 2.\n' "$channels" >"$diff_stats"
-	printf 'Skipped: input has %s channels, not 2.\n' "$channels" >"$sum_stats"
+	printf 'Skipped: input has %s channels, not 2.\n' "$channels" >"$side_stats"
+	printf 'Skipped: input has %s channels, not 2.\n' "$channels" >"$mid_stats"
 	mono_status="skipped because input is not stereo"
 	matrix_status="skipped because input is not stereo"
 	dual_mono_reason="skipped because input is not stereo"
@@ -592,25 +588,25 @@ fi
 	printf 'Padding reason: %s\n' "$padding_reason"
 	printf 'Padding strip status: %s\n' "$padding_status"
 	printf '\n'
-	printf 'Inversion test: L + (-R), equivalent to L-R\n'
-	printf 'L-R Pk lev dB: %s\n' "$diff_pk"
-	printf 'L-R RMS lev dB: %s\n' "$diff_rms"
+	printf 'side test: (L-R)/2\n'
+	printf 'side Pk lev dB: %s\n' "$side_pk"
+	printf 'side RMS lev dB: %s\n' "$side_rms"
 	printf 'Dual mono decision mode: %s\n' "$dual_mono_mode"
-	printf 'Effective L-R Pk threshold dB: %s\n' "$dual_mono_peak_threshold"
-	printf 'Effective L-R RMS threshold dB: %s\n' "$dual_mono_rms_threshold"
+	printf 'Effective side Pk threshold dB: %s\n' "$dual_mono_peak_threshold"
+	printf 'Effective side RMS threshold dB: %s\n' "$dual_mono_rms_threshold"
 	printf 'Strict dual mono: %s\n' "$strict_dual_mono"
 	printf 'Effective dual mono: %s\n' "$effective_dual_mono"
 	printf 'Dual mono: %s\n' "$dual_mono"
 	printf 'Dual mono reason: %s\n' "$dual_mono_reason"
 	printf '\n'
-	printf 'Opposite-phase duplicate test: L+R\n'
-	printf 'L+R Pk lev dB: %s\n' "$sum_pk"
-	printf 'L+R RMS lev dB: %s\n' "$sum_rms"
+	printf 'Opposite-phase duplicate test: mid (L+R)/2\n'
+	printf 'mid Pk lev dB: %s\n' "$mid_pk"
+	printf 'mid RMS lev dB: %s\n' "$mid_rms"
 	printf 'Opposite-phase duplicate: %s\n' "$opposite_phase_duplicate"
 	printf '\n'
 	printf 'Matrix stereo analysis\n'
 	printf 'Matrix status: %s\n' "$matrix_status"
-	printf 'Side minus mid RMS dB: %s\n' "$matrix_side_mid_delta_db"
+	printf 'side minus mid RMS dB: %s\n' "$matrix_side_mid_delta_db"
 	printf 'Estimated L/R correlation: %s\n' "$matrix_correlation"
 	printf 'Matrix heuristic: %s\n' "$matrix_heuristic"
 	printf '\n'
@@ -636,8 +632,8 @@ fi
 	printf 'Files:\n'
 	printf '%s\n' "- Source info: $source_info"
 	printf '%s\n' "- Source stats: $source_stats"
-	printf '%s\n' "- L-R stats: $diff_stats"
-	printf '%s\n' "- L+R stats: $sum_stats"
+	printf '%s\n' "- side stats: $side_stats"
+	printf '%s\n' "- mid stats: $mid_stats"
 	if [ "$flac_output_status" = "written" ]; then
 		printf '%s\n' "- FLAC output: $flac_output"
 	fi
@@ -646,7 +642,6 @@ fi
 		if [ "$channels" = "2" ]; then
 			printf '%s\n' "- Left spectrogram: $output_dir/$base.left.png"
 			printf '%s\n' "- Right spectrogram: $output_dir/$base.right.png"
-			printf '%s\n' "- L-R spectrogram: $output_dir/$base.diff-l-minus-r.png"
 			printf '%s\n' "- Matrix mid spectrogram: $matrix_mid_spectrogram"
 			printf '%s\n' "- Matrix side spectrogram: $matrix_side_spectrogram"
 		fi
@@ -659,10 +654,11 @@ fi
 	fi
 	printf '\n'
 	printf 'Notes:\n'
-	printf '%s\n' '- Strict dual mono requires both L-R Pk lev dB and RMS lev dB to be -inf.'
-	printf '%s\n' '- Effective dual mono uses configurable L-R peak and RMS thresholds.'
+	printf '%s\n' '- The mid and side signals are scaled as (L+R)/2 and (L-R)/2 to prevent derived-signal clipping.'
+	printf '%s\n' '- Strict dual mono requires both side Pk lev dB and RMS lev dB to be -inf.'
+	printf '%s\n' '- Effective dual mono uses configurable side peak and RMS thresholds.'
 	printf '%s\n' '- Matrixed stereo is never stripped automatically; mono output is written only when the dual mono decision passes.'
-	printf '%s\n' '- Matrix stereo analysis reports evidence from Mid and Side energy; it is not a bit-exact proof.'
+	printf '%s\n' '- Matrix stereo analysis reports evidence from mid and side energy; it is not a bit-exact proof.'
 	printf '%s\n' '- Mono output keeps channel 1 unchanged and clears copied comments.'
 	printf '%s\n' '- SoX reports effective bit depth but does not lower FLAC output precision automatically.'
 	printf '%s\n' '- Padding stripping applies to the canonical FLAC output and uses sox -D to disable automatic dither.'
