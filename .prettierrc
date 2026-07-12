@@ -1,0 +1,19 @@
+{
+  "semi": false,
+  "overrides": [
+    {
+      "files": ["COMMIT_EDITMSG", "TAG_EDITMSG"],
+      "options": {
+        "parser": "markdown",
+        "printWidth": 72,
+        "proseWrap": "always"
+      }
+    },
+    {
+      "files": ["extensions.json", "keybindings.json", "settings.json"],
+      "options": {
+        "parser": "jsonc"
+      }
+    }
+  ]
+}

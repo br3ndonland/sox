@@ -1,0 +1,65 @@
+# https://mise.jdx.dev/configuration.html
+[settings]
+activate_aggressive = true
+jobs = 1
+
+[tasks.check]
+depends = [
+  "basedpyright:check",
+  "prettier:check",
+  "ruff:check",
+  "shellcheck",
+  "shfmt:check",
+]
+description = "Run code quality checks"
+
+[tasks.format]
+depends = ["prettier:format", "ruff:format", "shfmt:format"]
+description = "Run code formatters"
+
+[tasks."basedpyright:check"]
+description = "Type check Python code with BasedPyright"
+run = "uv run --with 'pillow>=12,<13' basedpyright sox/annotate_waveform.py"
+
+[tasks."prettier:check"]
+description = "Check web code formatting with Prettier"
+run = "prettier --check ."
+
+[tasks."prettier:format"]
+description = "Format web code with Prettier"
+run = "prettier --write ."
+
+[tasks."ruff:check"]
+description = "Check Python code with Ruff"
+run = "ruff check ."
+
+[tasks."ruff:format"]
+description = "Format Python code with Ruff"
+run = "ruff format ."
+
+[tasks.shellcheck]
+description = "Check shell scripts with ShellCheck"
+run = "shellcheck scripts/build.sh sox/entrypoint.sh sox/analyze_audio.sh"
+
+[tasks."shfmt:check"]
+description = "Check shell script formatting with shfmt"
+run = "shfmt -d ."
+
+[tasks."shfmt:format"]
+description = "Format shell scripts with shfmt"
+run = "shfmt -w ."
+
+[tools]
+# https://mise.jdx.dev/configuration.html#scopes
+# https://mise.jdx.dev/dev-tools/
+#
+# registry tools from core backend
+node = "24"
+# registry tools from other backends
+ruff = "prefix:0.15"
+shellcheck = "prefix:0.11"
+shfmt = "prefix:3.13"
+uv = "prefix:0.11"
+# non-registry tools from specific backends
+"npm:prettier" = "prefix:3"
+"pipx:basedpyright" = "prefix:1"

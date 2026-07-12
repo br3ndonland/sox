@@ -1,0 +1,13 @@
+[*]
+end_of_line = lf
+insert_final_newline = true
+
+[*.{bash,sh}*]
+# general options
+indent_style = tab
+# shfmt options - https://github.com/mvdan/sh/blob/HEAD/cmd/shfmt/shfmt.1.scd
+apply_ignore = true
+
+[*.py]
+indent_style = space
+indent_size = 4
