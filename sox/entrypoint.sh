@@ -107,18 +107,6 @@ bool_to_mkvmerge() {
 	esac
 }
 
-sanitize_component() {
-	local value="$1"
-
-	value="$(printf '%s' "$value" | tr -c 'A-Za-z0-9_.-' '_')"
-	value="${value##_}"
-	value="${value%%_}"
-	if [ -z "$value" ]; then
-		value="track"
-	fi
-	printf '%s' "$value"
-}
-
 print_and_run() {
 	local argument
 
@@ -338,7 +326,7 @@ process_mkv() {
 			continue
 		fi
 
-		track_base="$(sanitize_component "$input_base.audio.track-$track_id")"
+		track_base="$input_base.audio.track-$track_id"
 		decoded_flac="$tmp_dir/$track_base.decoded.flac"
 
 		print_and_run ffmpeg -nostdin -hide_banner -loglevel error -y \
