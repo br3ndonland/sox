@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
-ARG UV_PYTHON
-FROM ghcr.io/astral-sh/uv:python${UV_PYTHON}-alpine AS uv
-FROM alpine:edge
+ARG ALPINE_LINUX_VERSION=3.23 UV_PYTHON
+FROM ghcr.io/astral-sh/uv:python${UV_PYTHON}-alpine${ALPINE_LINUX_VERSION} AS uv
+FROM alpine:${ALPINE_LINUX_VERSION}
 COPY --from=uv /usr/local/ /usr/local/
 ENV UV_CACHE_DIR=/tmp/uv-cache
 RUN apk add --no-cache --upgrade \
