@@ -63,7 +63,7 @@ node = "24"
 ruff = "prefix:0.15"
 shellcheck = "prefix:0.11"
 shfmt = "prefix:3.14"
-uv = "prefix:0.11"
+uv = "prefix:0.12"
 # non-registry tools from specific backends
 "npm:prettier" = "prefix:3"
 "pipx:basedpyright" = "prefix:1"
