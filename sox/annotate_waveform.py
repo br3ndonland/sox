@@ -55,7 +55,7 @@ def text_size(draw: ImageDraw.ImageDraw, text: str) -> tuple[int, int]:
 
 
 def format_time(seconds: float) -> str:
-    rounded = int(round(seconds))
+    rounded = round(seconds)
     hours = rounded // 3600
     minutes = (rounded % 3600) // 60
     secs = rounded % 60

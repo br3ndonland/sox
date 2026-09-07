@@ -60,7 +60,7 @@ run = "shfmt -w ."
 # registry tools from core backend
 node = "24"
 # registry tools from other backends
-ruff = "prefix:0.15"
+ruff = "prefix:0.16"
 shellcheck = "prefix:0.11"
 shfmt = "prefix:3.14"
 uv = "prefix:0.12"
